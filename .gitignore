@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+application-local.yml
+application-local.yaml
 
 # Java / Maven
 target/
@@ -20,3 +22,8 @@ dist/
 # 日志
 logs/
 *.log
+
+# 压缩包（传文件用的临时产物，不属于源码）
+*.zip
+*.rar
+*.7z
