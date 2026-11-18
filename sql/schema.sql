@@ -6,6 +6,10 @@
 -- 来源：《AI剧本杀技术方案.md》第四节，原样复制。
 -- ============================================================
 
+-- 🔴 必须首行：官方 mysql 镜像的初始化客户端默认字符集是 latin1，
+-- 不加这句，中文 COMMENT 会被双重编码存成乱码。
+SET NAMES utf8mb4;
+
 -- 表1：user 用户表
 CREATE TABLE `user` (
   `id`           BIGINT       NOT NULL AUTO_INCREMENT,

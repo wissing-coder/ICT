@@ -98,6 +98,36 @@ docker compose down         # 停（数据保留）
 docker compose down -v      # 停并清空数据（重来时用）
 ```
 
+### 🇨🇳 国内网络拉镜像超时的解决办法
+
+如果 `docker compose up -d` 卡在拉镜像并报 `registry-1.docker.io ... timeout`（Docker Hub 官方源在国内直连不稳定），**不要改 compose 文件**，用"镜像源拉取 + 改名"的方式：
+
+```bash
+docker pull docker.m.daocloud.io/library/mysql:8.0
+docker tag  docker.m.daocloud.io/library/mysql:8.0 mysql:8.0
+
+docker pull docker.m.daocloud.io/library/redis:7-alpine
+docker tag  docker.m.daocloud.io/library/redis:7-alpine redis:7-alpine
+
+docker compose up -d        # 本地已有官方名镜像，直接用
+```
+
+2026-11-18 实测可用的镜像源：`docker.m.daocloud.io`、`docker.1ms.run`、`hub.rat.dev`、`docker.xuanyuan.me`。
+一个源失效就换下一个，方法相同。**镜像源只做匿名拉取，不需要登录。**
+
+### 🔴 中文注释乱码问题（已修复，别回退）
+
+官方 mysql 镜像的初始化客户端默认字符集是 latin1，直接执行 UTF-8 的 `schema.sql` 会把中文 COMMENT 双重编码成乱码。
+修复方式是 `schema.sql` / `init_data.sql` 首行的 `SET NAMES utf8mb4;`——**这两行不能删**。
+验收命令：
+
+```bash
+docker exec mian-mysql mysql -uroot -proot123456 --default-character-set=utf8mb4 mian \
+  -e "SELECT TABLE_NAME, TABLE_COMMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA='mian';"
+```
+
+COMMENT 列应显示"用户表""剧本表"等正常中文。
+
 ---
 
 ## 四、目录结构
