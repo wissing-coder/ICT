@@ -1,0 +1,29 @@
+# 密钥，绝不能进仓库
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.yaml
+
+# Java / Maven
+target/
+*.class
+
+# Node / 前端
+node_modules/
+dist/
+.vite/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 日志
+logs/
+*.log
+
+# 压缩包（传文件用的临时产物，不属于源码）
+*.zip
+*.rar
+*.7z
