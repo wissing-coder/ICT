@@ -1,23 +1,30 @@
 # 《迷案·回声》项目资料
 
-> 本仓库为公开仓库；完整剧本包含案件真相和角色秘密。公开前请先读文末「待决策」。
+> **内容基准**：以 [网页剧本杀完整方案 V2.0](迷案回声_网页剧本杀完整方案.md) 为准。
+> `script-mianan.md` 是旧版《迷案》文本，仅作历史参考——V2 已改写角色、时间线与线索。
 
 ## 文档
 
 | 文件 | 内容 | 维护 |
 |---|---|---|
-| `script-mianan.md` | 完整剧本数据：4 角色卡、2 个 AI NPC 人设与知识范围、14 条线索、建库 SQL | 张宇恒 |
-| `script-review-and-handoff.docx` | 剧本定稿自查报告：14 条时间线与机密标记、13 个泄密词扫描结果、七项自查表、`play_guide` 拆分说明、交付话术 | 张宇恒 |
-| `team-coordination.md` | 三人分工与协作规则（独立项目版，Phase 0-4） | 全员 |
-| `Mian_HuiSheng_Game_Design_and_Team_Plan.md` | 游戏设计与团队计划 | 全员 |
+| `迷案回声_网页剧本杀完整方案.md` | **方案 V2.0（内容基准）**：定位、阶段、三份私卡、真相本、C01–C12 线索、AI 边界、接口约定 | Wissing |
+| `script-review-and-handoff.docx` | 剧本 V2 定稿与自查包：13 条时间线、线索获取表、10 项自查、待确认 8 条、机关模型记录表、投票判定表 | 张宇恒 |
+| `interface-gaps.md` | 接口缺口与待决：三缺口的方案对比、建议、以及「改完怎么验」 | 张宇恒 → 张越扬 |
+| `frontend-scaffold-request.md` | 前端脚手架需求单：目录结构、路由、代理与别名约定、以及「请不要做的」 | 张宇恒 → 陆豪 |
+| `script-mianan.md` | 旧版《迷案》剧本数据（文本版，含剧透）——**已被 V2 取代** | — |
+| `team-coordination.md` | 三人分工与协作规则（文本版） | 全员 |
+| `Mian_HuiSheng_Game_Design_and_Team_Plan.md` | 游戏设计方案与团队计划 | 全员 |
 
 ## 仓库其它位置
 
 | 路径 | 内容 |
 |---|---|
 | `DECISIONS.md` | 决策记录，每行一条「日期 · 决策 · 理由」 |
-| `sql/init_data_character.sql` | character 表数据（含 `play_guide` 字段），替换 `init_data.sql` 中对应段落 |
+| `sql/init_data.sql` | V2 初始化数据：script 1 / character 3 / npc 2 / clue 12（含 7 条校验） |
 
 ## 待决策
 
-- **仓库公开还是私有。** 完整剧本含 `ground_truth`，而「数据进仓库」是可复现的前提。两者在公开仓库里冲突：仓库设 public 就等于公开答案。建议在 Phase 4 决定——若要让人真的来玩，public 之前把 `script-mianan.md` 与 `sql/init_data.sql` 拆到单独私有仓库或私有子模块。
+- **仓库公开还是私有。** 完整剧本含 `ground_truth`，而「数据进仓库」是可复现的前提。两者在公开仓库里冲突：仓库设 public 就等于公开答案。若要让人真的来玩，public 之前把剧本文本与 `sql/init_data.sql` 拆到私有仓库或私有子模块。
+- **旧稿是否移除。** `script-mianan.md` 与旧 `sql/init_data_character.sql` 已被 V2 取代，当前保留仅作历史参考。
+
+剧本和协作规则由 Word 提取为文本，排版、表格及 SQL 换行可能与原稿不同，SQL 使用前需核对。项目先进行本地网页游戏开发，最终成品不考虑使用华为云。
