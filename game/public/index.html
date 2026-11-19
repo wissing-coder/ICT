@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>迷案·回声｜听雨轩疑案</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="masthead"><span class="seal" aria-hidden="true">案</span><div><h1>迷案·回声</h1><p>听雨轩疑案 · 江南，1937</p></div></header>
+  <main>
+    <p id="status" role="status" aria-live="polite"></p>
+    <section id="entry" class="sheet">
+      <p class="eyebrow">三人推理 · 约 15–20 分钟</p>
+      <h2>雨停之后，书房的门没有再打开。</h2>
+      <p>三位当事人各有一段说辞。翻阅证物、盘问管家，然后共同判断昨夜发生了什么。</p>
+      <nav class="actions entry-modes" aria-label="开局方式">
+        <button type="button" data-entry="solo" aria-pressed="true">单人试玩</button>
+        <button type="button" data-entry="friends" aria-pressed="false" class="secondary">好友开房</button>
+        <button type="button" data-entry="match" aria-pressed="false" class="secondary">快速匹配</button>
+      </nav>
+      <form id="entry-form">
+        <label>昵称 <input required maxlength="20" name="name" autocomplete="nickname"></label>
+        <label id="entry-role">选择角色
+          <select name="role">
+            <option value="">请选择角色</option>
+            <option value="xuan">苏明轩 · 长子</option>
+            <option value="yu">苏明玉 · 次女</option>
+            <option value="lin">林砚秋 · 医生</option>
+          </select>
+        </label>
+        <div class="actions" id="entry-solo"><button name="action" value="solo">与两名 AI 开局</button></div>
+        <div class="actions" id="entry-match" hidden><button name="action" value="match" disabled>开始匹配</button></div>
+        <div id="entry-friends" hidden>
+          <label>好友房间码 <input name="code" maxlength="8" placeholder="加入好友房时填写" autocapitalize="characters"></label>
+          <div class="actions compact"><button name="action" value="create" disabled>创建房间</button><button name="action" value="join" class="secondary" disabled>加入房间</button></div>
+        </div>
+      </form>
+    </section>
+    <section id="waiting" class="sheet" hidden>
+      <h2>正在匹配</h2>
+      <p id="wait-role"></p>
+      <p>找齐三个不同角色后自动开局。更换角色需取消后重新匹配。</p>
+      <p id="wait-time"></p>
+      <button id="cancel-match" class="secondary">取消匹配</button>
+    </section>
+    <section id="room" hidden></section>
+  </main>
+  <footer>听雨轩 · 案件档案</footer>
+</body>
+</html>

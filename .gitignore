@@ -1,0 +1,7 @@
+game/data/
+.env
+.env.*
+!.env.example
+mian-env/
+.ict_library_transfer_*/
+ict_materials_stage_*/
