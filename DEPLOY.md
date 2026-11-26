@@ -41,6 +41,19 @@ docker compose logs --tail 80 game web
 
 首次对局创建后才有 rooms.json。若 HTTPS 申请失败，先检查 DNS 的 A/AAAA 记录是否都指向当前主机，再检查端口、Caddy 日志及备案信息同步状态。若服务器不能访问镜像仓库，需配置服务器可用的镜像来源后重新构建。
 
+## Docker Hub 不可达时的原生部署
+
+Ubuntu 22.04 amd64 可以在 root 终端进入项目目录，复制 .env.example 为 .env 并核对备案号，然后执行 `bash deploy-native.sh`。此脚本从 Node.js 官方地址下载独立运行时，校验 SHA256，并通过 Caddy 官方软件仓库安装代理，通过 systemd 启动游戏及 HTTPS 服务。它使用的 80、443、8787 必须可用。
+
+本次 ECS 试玩使用目录 `/opt/mian-echo-preview-20261126`。游戏进程为 `mian-echo-preview`，代理为 `mian-echo-web`。可执行以下命令查看运行状态和日志。
+
+```bash
+systemctl status mian-echo-preview mian-echo-web --no-pager
+journalctl -u mian-echo-preview -u mian-echo-web -n 80 --no-pager
+```
+
+对局位于 `/var/lib/mian-echo-preview/rooms.json`，证书位于 `/var/lib/mian-echo-caddy`。更新代码后运行 `systemctl restart mian-echo-preview`。调整域名或备案信息后同时重启两个服务。此部署不使用 Docker 的 rooms 卷，备份应针对上述实际目录。
+
 ## 对应官方资料
 
 - Docker Ubuntu 安装说明 https://docs.docker.com/engine/install/ubuntu/
@@ -48,3 +61,11 @@ docker compose logs --tail 80 game web
 - 阿里云 DNS 配置 https://help.aliyun.com/zh/dns/beginner-s-guide
 
 本地验证与容器配置验证不代表已在 ECS 部署。实际部署还需要登录权限、真实备案号和公网联测。
+
+## 2026-11-26 首次上线实测
+
+试玩地址为 https://play.naiwashengnaidandui.online/ 。源代码位于 GitHub 的 `deploy/ecs-preview-20261126` 分支。该分支提供现有 Node 原型的线上试玩，正式 Spring Boot/Vue 项目的路线见主分支团队决定。
+
+ECS 无法连接 Docker Hub，本次改为原生 Node.js v24.22.3、Caddy 2.11.9 和上述两个 systemd 服务，已验证均启用自启动且处于 active 状态。Let's Encrypt 证书签发成功，外部浏览器已打开 HTTPS 首页、创建单人双 AI 房间并刷新恢复原房间，健康检查返回 {"ok":true}。页脚显示苏ICP备2026094154号-1并指向工信部查询页面。
+
+已添加 TCP 80、443 的公网入站允许规则。首份对局备份为 `/var/backups/mian-echo/rooms-20261126-first-launch.json`，后续对局变更需继续备份。跨运营商及手机流量联测仍待实测。

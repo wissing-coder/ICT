@@ -18,9 +18,21 @@ if [[ ! -x "$tools_dir/node-${node_version}-linux-x64/bin/node" ]]; then
   tar -xJf "$tools_dir/$node_archive" -C "$tools_dir"
 fi
 if [[ ! -x "$tools_dir/caddy" ]]; then
-  curl -fL --connect-timeout 15 --max-time 180 --retry 2 \
-    'https://caddyserver.com/api/download?os=linux&arch=amd64' -o "$tools_dir/caddy.download"
-  install -m 0755 "$tools_dir/caddy.download" "$tools_dir/caddy"
+  if ! command -v caddy >/dev/null; then
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg
+    curl -fsSL --connect-timeout 15 --max-time 60 \
+      https://dl.cloudsmith.io/public/caddy/stable/gpg.key -o "$tools_dir/caddy-gpg.key"
+    gpg --batch --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg "$tools_dir/caddy-gpg.key"
+    curl -fsSL --connect-timeout 15 --max-time 60 \
+      https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt -o /etc/apt/sources.list.d/caddy-stable.list
+    chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg /etc/apt/sources.list.d/caddy-stable.list
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y caddy
+    # The dedicated proxy below owns the web ports after this fresh install.
+    systemctl disable --now caddy
+  fi
+  ln -s "$(command -v caddy)" "$tools_dir/caddy"
 fi
 "$tools_dir/caddy" version
 "$tools_dir/node-${node_version}-linux-x64/bin/node" --version
