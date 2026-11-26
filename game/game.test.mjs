@@ -1,13 +1,39 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { chooseBotAction, teammateReply } from './teammate.mjs';
+import { renderHome } from './site.mjs';
+
+test('registration footer renders configured public numbers safely', () => {
+  const template = '<footer><!-- registration-links --></footer>';
+  assert.equal(renderHome(template, {}), '<footer></footer>');
+  const html = renderHome(template, {
+    ICP_NUMBER: '测试ICP备123456号-1<script>',
+    POLICE_NUMBER: '测试公网安备12345678901234号',
+    POLICE_CODE: '12345678901234',
+  });
+  assert.ok(html.includes('href="https://beian.miit.gov.cn/"'));
+  assert.ok(html.includes('&lt;script&gt;'));
+  assert.ok(!html.includes('<script>'));
+  assert.ok(html.includes('webSearch?code=12345678901234'));
+  assert.ok(!renderHome(template, { POLICE_NUMBER: '号码', POLICE_CODE: 'javascript:alert(1)' }).includes('<a'));
+});
+
+test('home page serves registration link before client JavaScript runs', async t => {
+  const { base } = await gameServer(t, { ICP_NUMBER: '测试ICP备123456号-1' });
+  const response = await fetch(base);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.ok(html.includes('测试ICP备123456号-1'));
+  assert.ok(html.includes('单人试玩'));
+  assert.ok(!html.includes('<!-- registration-links -->'));
+});
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function gameServer(t, config = {}) {
@@ -48,9 +74,10 @@ async function gameServer(t, config = {}) {
     assert.equal(response.status, status, JSON.stringify(json));
     return json;
   }
-  return { call, base, restart: async () => {
+  return { call, base, backup: () => copyFileSync(join(directory,'rooms.json'),join(directory,'snapshot.json')), restart: async (restore = false) => {
     child.kill();
     await once(child, 'exit');
+    if (restore) copyFileSync(join(directory,'snapshot.json'),join(directory,'rooms.json'));
     await boot();
   } };
 }
@@ -426,4 +453,72 @@ test('short-flow friend rooms wait for all human readers and reject a stale conf
   assert.equal((await act(people[2], 'phase-ready', confirm)).state.phase, 2);
   await delay(160);
   await act(a, 'phase-ready', confirm, 409);
+});
+
+test('twenty simultaneous three-seat rooms retain private threaded evidence after restoring backup', async t => {
+  const { call, base, backup, restart } = await gameServer(t, {GAME_FLOW_VERSION:'2', GAME_MINUTE_MS:'60000'});
+  assert.equal((await fetch(base + '/healthz')).status,200);
+  const start = performance.now();
+  const games = await Promise.all(Array.from({length:20},(_,i)=>call('solo',{name:'试玩'+i,role:'yu'})));
+  const latency = performance.now()-start;
+  assert.equal(new Set(games.map(g=>g.state.code)).size,20);
+  for (const g of games) {
+    assert.equal(g.state.caseVersion,'tingyuxuan-1.0');
+    assert.equal(g.state.players.length,3);
+    assert.equal(g.state.brief.length,4);
+    assert.equal(g.state.result,undefined);
+  }
+  t.diagnostic('20 concurrent solo + two AI rooms, batch '+Math.round(latency)+' ms, 0 failed');
+  const [a,b] = games;
+  const act=(g,route,data,status)=>call(g.state.code+'/'+route,data,g.token,status);
+  await Promise.all([a,b].map(g=>act(g,'phase-ready',{phase:1,since:g.state.since,done:true})));
+  await delay(170);
+  await act(a,'clue',{id:'C01'});
+  await delay(170);
+  const first=await act(a,'message',{text:'这份证物说明什么？',clueId:'C01'});
+  const id=first.state.messages.at(-1).id;
+  await act(b,'message',{text:'来自其他房间',replyTo:id},400);
+  await delay(170);
+  const answer=await act(a,'message',{text:'还需要另一份证言。',replyTo:id});
+  assert.equal(answer.state.messages.at(-1).cite,'C01');
+  backup();
+  await restart(true);
+  const restored=await act(a,'state');
+  assert.ok(restored.state.messages.some(m=>m.replyTo===id && m.cite==='C01'));
+});
+
+test('sixty independent human sessions can question and reply in twenty matched rooms', async t => {
+  const { call } = await gameServer(t, { GAME_FLOW_VERSION: '2', GAME_MINUTE_MS: '60000' });
+  const clients = Array.from({length: 60}, (_, i) => ({
+    role: ['xuan', 'yu', 'lin'][i % 3], name: '席位' + i, token: ticket()
+  }));
+  const start = performance.now();
+  await Promise.all(clients.map(({role,name,token}) => call('match',{role,name},token)));
+  const rooms = new Map();
+  await Promise.all(clients.map(async client => {
+    const {state} = await call('match',null,client.token);
+    assert.equal(state.phase,1);
+    assert.equal(state.players.filter(p=>!p.bot).length,3);
+    assert.equal(state.players.find(p=>p.id===state.me).role,client.role);
+    if (!rooms.has(state.code)) rooms.set(state.code,[]);
+    rooms.get(state.code).push({...client,state});
+  }));
+  assert.equal(rooms.size,20);
+  const matched = performance.now()-start;
+  const act=(p,route,data)=>call(p.state.code+'/'+route,data,p.token);
+  await Promise.all([...rooms.values()].map(async people=>{
+    assert.equal(people.length,3);
+    await Promise.all(people.map(p=>act(p,'phase-ready',{phase:1,since:p.state.since,done:true})));
+    const [asker,answerer,observer]=people;
+    await delay(200);
+    await act(observer,'clue',{id:'C04'});
+    const question=await act(asker,'message',{text:'这份草稿确定签过字吗？',clueId:'C04',targetPlayer:answerer.state.me});
+    const parent=question.state.messages.at(-1);
+    assert.equal(parent.to,answerer.name);
+    await act(answerer,'message',{text:'我只看到了草稿。',replyTo:parent.id});
+    const view=await act(observer,'state');
+    assert.equal(view.state.messages.at(-1).replyTo,parent.id);
+    assert.equal(view.state.messages.at(-1).cite,'C04');
+  }));
+  t.diagnostic('60 sessions / 20 rooms: match and fetch '+Math.round(matched)+' ms; through investigation and replies '+Math.round(performance.now()-start)+' ms');
 });

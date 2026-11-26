@@ -1,0 +1,27 @@
+services:
+  game:
+    build: .
+    restart: unless-stopped
+    environment:
+      ICP_NUMBER: ${ICP_NUMBER:-}
+      POLICE_NUMBER: ${POLICE_NUMBER:-}
+      POLICE_CODE: ${POLICE_CODE:-}
+    volumes:
+      - rooms:/state
+  web:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      GAME_DOMAIN: ${GAME_DOMAIN:?set GAME_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+    depends_on:
+      game:
+        condition: service_healthy
+volumes:
+  rooms:
+  certificates:

@@ -1,0 +1,6 @@
+*
+!game/
+!game/*.mjs
+!game/public/
+!game/public/**
+!迷案回声_网页剧本杀完整方案.md

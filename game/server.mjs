@@ -1,3 +1,5 @@
+import { briefs, questions, corroboration } from './edition.mjs';
+import { renderHome } from './site.mjs';
 import { createServer } from 'node:http';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { readFileSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
@@ -61,7 +63,7 @@ function addPlayer(room, name, token = randomBytes(32).toString('hex')) {
 function newRoom(mode = 'friends') {
   let code;
   do { code = randomBytes(4).toString('hex').toUpperCase(); } while (rooms.has(code));
-  const room = { code, mode, flowVersion: process.env.GAME_FLOW_VERSION === '1' ? 1 : 2,
+  const room = { code, mode, caseVersion: 'tingyuxuan-1.0', flowVersion: process.env.GAME_FLOW_VERSION === '1' ? 1 : 2,
     phase: 0, since: Date.now(), players: [], clues: {}, votes: {}, messages: [], asked: 0 };
   rooms.set(code, room);
   return room;
@@ -177,23 +179,24 @@ function tick(room) {
 function snapshot(room, me) {
   const result = { code: room.code, phase: room.phase, since: room.since, now: Date.now(),
     limit: phaseLimit(room) * scale, host: room.mode !== 'quick' && room.players[0].id === me.id,
-    flowVersion: room.flowVersion || 1,
+    caseVersion: room.caseVersion || 'prototype', flowVersion: room.flowVersion || 1,
     phaseReady: Object.keys(room.phaseReady || {}),
     phaseBlock: shortFlow(room) && room.phase >= 1 && room.phase <= 3 ? earlyBlock(room) : '',
     mode: room.mode || 'friends', recruiting: Boolean(room.recruiting), vacancy: vacancy(room), botVacancies: botVacancies(room),
     earliest: (earliest[room.phase] || 0) * scale, me: me.id, roles, opening,
     players: room.players.map(({ id, name, role, ready, seen, bot }) => ({ id, name, role, ready, bot: Boolean(bot), online: Boolean(bot) || seen >= stale() })),
+    brief: room.caseVersion && room.phase > 0 ? briefs[me.role] : undefined,
     card: room.phase > 0 && me.role ? cards[me.role] : null,
     prefs: me.prefs, modelReady, remaining: 24 - room.asked, draftRemaining: 3 - me.drafts,
     voted: Object.hasOwn(room.votes, me.id), messages: room.messages.map(({ requestId, authorId, ...message }) => message),
     teammatePending: [...(teammatePending.get(room)?.values() ?? [])].map(({ questionId, botId }) => ({ questionId, botId })),
     clues: clues.filter(clue => room.phase >= clue.phase).map(({ id, title, kind, body, meaning }) =>
-      ({ id, title, kind, body: room.clues[id] ? body : null, via: room.clues[id], meaning: room.phase === 5 ? meaning : undefined })),
+      ({ id, title, kind, question: room.caseVersion && room.clues[id] ? questions[Number(id.slice(1))-1] : undefined, related: room.phase === 5 ? corroboration[Number(id.slice(1))-1] : undefined, body: room.clues[id] ? body : null, via: room.clues[id], meaning: room.phase === 5 ? meaning : undefined })),
   };
   if (room.phase === 5) {
     const votes = room.players.map(p => ({ from: p.name, to: room.players.find(q => q.id === room.votes[p.id])?.name || '弃票' }));
     const winner = room.players.find(p => Object.values(room.votes).filter(v => v === p.id).length >= 2);
-    result.result = { label: verdict[winner ? winner.role === 'xuan' ? 'solved' : 'wrong' : 'split'], votes, timeline };
+    result.result = { secrets: room.caseVersion ? roles.map(role => ({name: role.name, secret: briefs[role.id][2]})) : [], label: verdict[winner ? winner.role === 'xuan' ? 'solved' : 'wrong' : 'split'], votes, timeline };
     if (shortFlow(room)) result.result.myReasoning = {
       choice: room.players.find(p => p.id === room.votes[me.id])?.name ?? '弃票',
       clueIds: room.voteClues?.[me.id] ?? [],
@@ -240,7 +243,7 @@ function askTeammate(room, me, body, question) {
   need(!pending?.has(bot.id), '这位队友还在回应，请稍等。', 429);
   need((room.teammateQuestions ?? 0) < 24, '本局的队友提问次数已用完。', 429);
   if (!pending) teammatePending.set(room, pending = new Map());
-  const message = log(room, me.name, question, 'player', { to: bot.name, cite: body.clueId, authorId: me.id, requestId: body.requestId });
+  const message = log(room, me.name, question, 'player', { to: bot.name, replyTo: body.replyTo, cite: body.clueId, authorId: me.id, requestId: body.requestId });
   const turn = { botId: bot.id, questionId: message.id };
   pending.set(bot.id, turn);
   room.teammateQuestions = (room.teammateQuestions ?? 0) + 1;
@@ -390,8 +393,13 @@ function handle(room, me, action, body) {
     need(room.phase >= 2 && room.phase <= 4, '当前阶段不能讨论。');
     const text = clean(body.text, body.targetBot ? 220 : 500);
     checkCitation(room, body.clueId);
+    const parent = body.replyTo && room.messages.find(message => message.id === body.replyTo);
+    if (body.replyTo !== undefined) need(parent, '原发言已不可用。', 400);
+    if (parent?.cite && !body.clueId) body.clueId = parent.cite;
+    const target = body.targetPlayer && room.players.find(player => player.id === body.targetPlayer && !player.bot && player.id !== me.id);
+    if (body.targetPlayer) need(target, '请选择本房间的其他真人。', 400);
     if (body.targetBot) askTeammate(room, me, body, text);
-    else log(room, me.name, text, 'player', { cite: body.clueId });
+    else log(room, me.name, text, 'player', { cite: body.clueId, replyTo: parent?.id, to: target?.name });
   } else if (action === 'prefs') {
     need(room.phase >= 1 && room.phase <= 4, '当前阶段不能保存表达偏好。');
     need(body.enabled === false || (['平静', '直接', '委婉'].includes(body.tone) && ['解释', '反问', '暂不判断'].includes(body.stance)), '表达偏好无效。', 400);
@@ -433,6 +441,7 @@ function respond(res, status, data, type = 'application/json') {
 const server = createServer(async (req, res) => {
   try {
     const path = new URL(req.url, 'http://localhost').pathname;
+    if (req.method === 'GET' && path === '/healthz') return respond(res, 200, { ok: true });
     if (publicTrial && req.method === 'POST' && ['/api/create', '/api/join', '/api/match', '/api/solo'].includes(path)) {
       const client = req.headers['cf-connecting-ip'] || req.socket.remoteAddress;
       limit('entry:' + client, 20);
@@ -440,7 +449,8 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === 'GET' && files.has(path)) {
       const [file, type] = files.get(path);
-      return respond(res, 200, readFileSync(new URL('./public/' + file, import.meta.url)), type);
+      const content = readFileSync(new URL('./public/' + file, import.meta.url), 'utf8');
+      return respond(res, 200, file === 'index.html' ? renderHome(content) : content, type);
     }
     if (path === '/api/match' || path === '/api/match/cancel') {
       const token = req.headers.authorization?.replace(/^Bearer /, '') || '';

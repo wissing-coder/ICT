@@ -82,7 +82,7 @@ function renderMessage(message, messages) {
   return `<div class="message"><strong>${esc(message.by)}</strong> <small>${label}</small>
     ${message.to ? `<small> → ${esc(message.to)}</small>` : ''}
     ${context ? `<div><small>${esc(context)}</small></div>` : ''}
-    <p>${esc(message.body)}${message.cite ? ' ' + btn(message.cite + ' · 查看证物', 'jump-clue', message.cite, false, true) : ''}</p></div>`;
+    <p>${esc(message.body)}${message.cite ? ' ' + btn(message.cite + ' · 查看证物', 'jump-clue', message.cite, false, true) : ''}</p>${state?.phase >= 2 && state.phase <= 4 && message.id ? btn('回复','reply-message',message.id,false,true) : ''}</div>`;
 }
 function progress(next) {
   const people = next.players.filter(player => !player.bot);
@@ -93,6 +93,10 @@ function progress(next) {
   return `<section class="sheet progress"><p>${goals[next.phase]}</p>
     ${next.phase <= 3 ? `<div class="actions"><strong>${ready.length}/${people.length} 位玩家已完成</strong><span class="muted">${esc(detail)}</span>
     ${btn(done ? '取消完成' : next.phase === 1 ? '我已读完' : '我准备进入下一阶段', 'phase-ready', done ? 'undo' : 'done', false, done)}</div>` : ''}</section>`;
+}
+function threadFor(next, clueId) {
+  return next.messages.filter(message => message.cite === clueId ||
+    next.messages.some(parent => parent.id === message.replyTo && parent.cite === clueId));
 }
 function evidenceBoard(next) {
   const locations = [
@@ -105,8 +109,9 @@ function evidenceBoard(next) {
     if (!clues.length) return '';
     return `<h3 class="compact">${title}</h3>${clues.map(c => `<div class="clue" id="evidence-${c.id}" tabindex="-1">
       <h3>${c.id} · ${esc(c.title)}</h3>
-      ${c.body ? `<p>${esc(c.body)}</p><div class="actions"><small>${esc(c.via)}</small>
-        ${next.phase <= 4 ? btn('引用讨论', 'cite-clue', c.id, false, true) : ''}</div>` : btn('调查', 'clue', c.id, false, true)}
+      ${c.body ? `<p>${esc(c.body)}</p>${c.question ? `<p class="muted">${esc(c.question)}</p>` : ""}<div class="actions"><small>${esc(c.via)}</small>
+        ${next.phase === 3 && next.clues.some(clue => clue.id === 'C12' && clue.body) ? btn('对照日记','read-diary',c.id,false,true) : ''}${next.phase <= 4 ? btn('引用追问', 'cite-clue', c.id, false, true) : ''}</div>` : btn('调查', 'clue', c.id, false, true)}
+      ${c.body ? threadFor(next,c.id).map(m => renderMessage(m,next.messages)).join('') : ''}
       ${c.meaning ? `<p class="muted">${esc(c.meaning)}</p>` : ''}</div>`).join('')}`;
   }).join(''));
 }
@@ -127,10 +132,10 @@ function reasoningRecap(next) {
     return clue ? btn(clue.id + ' · ' + clue.title, 'jump-clue', clue.id, false, true) : '';
   };
   return {
-    personal: sheet('我的推理', `<p>你的选择：${esc(own.choice)}</p><div class="actions">${own.clueIds.map(cite).join('') || '<span class="muted">没有提交证物</span>'}</div>`),
+    personal: sheet('我的推理', `<p>你的选择：${esc(own.choice)}</p><div class="actions">${own.clueIds.map(cite).join('') || '<span class="muted">没有提交证物</span>'}</div>${own.clueIds.map(id=>`<p>${esc(id)} · ${esc(next.clues.find(c=>c.id===id)?.meaning)}</p>`).join('')}`),
     chain: sheet('关键证据链', groups.map(([title, ids]) => `<h3>${title}</h3><ul>${ids.map(id => {
       const clue = next.clues.find(c => c.id === id);
-      return clue ? `<li>${cite(id)} <small>${esc(clue.via)}</small><p>${esc(clue.meaning)}</p></li>` : '';
+      return clue ? `<li>${cite(id)} <small>${esc(clue.via)}</small><p>${esc(clue.meaning)}</p>${clue.related ? cite(clue.related) : ""}</li>` : '';
     }).join('')}</ul>`).join('')),
   };
 }
@@ -176,7 +181,7 @@ function render(next, force = false) {
   const previous = state?.phase;
   state = next;
   syncTime = Date.now();
-  if (previous !== next.phase) Object.assign(memo, { reply: null, draft: null, panel: 'evidence', cite: null, vote: '', voteClues: [] });
+  if (previous !== next.phase) Object.assign(memo, { recipient: '', replyTo: null, reply: null, draft: null, panel: 'evidence', cite: null, vote: '', voteClues: [] });
   const { now, ...rest } = next;
   const key = JSON.stringify(rest);
   if (!force && key === signature) return timed();
@@ -205,11 +210,12 @@ function render(next, force = false) {
   const seats = phase ? '' : next.roles.map(r => `<div class="entry-row"><strong>${r.name} · ${r.title}</strong><p>${r.intro}</p>${btn(me.role === r.id ? '已选择' : '选择', 'seat', r.id, next.players.some(p => p.role === r.id), true)}</div>`).join('') + btn(me.ready ? '取消准备' : '准备', 'ready', '', !me.role);
   const prefs = phase >= 1 && phase <= 4 ? `<details class="compact" ${next.prefs ? 'open' : ''}><summary>AI 表达偏好</summary><form data-form="prefs"><label>语气<select name="tone">${['平静','直接','委婉'].map(v => `<option${selected(v, next.prefs?.tone)}>${v}</option>`).join('')}</select></label><label>面对质疑<select name="stance">${['解释','反问','暂不判断'].map(v => `<option${selected(v, next.prefs?.stance)}>${v}</option>`).join('')}</select></label><div class="actions"><button>保存并开启</button>${next.prefs ? btn('关闭','disable','',false,true) : ''}</div></form></details>` : '';
   const story = sheet('案情', next.opening.map(p => `<p>${esc(p)}</p>`).join(''));
-  const card = next.card ? sheet('我的角色卡', `<details ${phase === 1 ? 'open' : ''}><summary>${roleName(me.role)} · 仅自己可见</summary><p class="card">${esc(next.card)}</p></details>${prefs}`) : '';
-  const clueList = next.clues.map(c => `<div class="clue" id="evidence-${c.id}" tabindex="-1"><span class="kind">${c.id} · ${c.kind}</span><h3>${esc(c.title)}</h3>${c.body ? `<p>${esc(c.body)}</p><small>${esc(c.via)}</small>` : btn('调查', 'clue', c.id, phase === 5, true)}${c.meaning ? `<p class="muted">${esc(c.meaning)}</p>` : ''}</div>`).join('');
-  const chat = phase >= 2 ? sheet('公开讨论', `<div class="chat">${next.messages.map(m => renderMessage(m, next.messages)).join('') || '<p class="muted">还没有发言。</p>'}</div>${phase <= 4 ? `<form data-form="message"><label>发言<textarea name="text" maxlength="500" required data-memo="discussion">${esc(memo.discussion)}</textarea></label><div class="actions"><button>发送</button>${next.prefs ? btn('整理成草稿', 'draft', '', !next.modelReady || !next.draftRemaining, true) : ''}</div></form>${memo.draft && next.prefs ? `<form data-form="send-draft"><label>草稿预览 · 确认内容后发送<textarea name="text" maxlength="500" required data-memo="draftText">${esc(memo.draft.answer)}</textarea></label><button>确认并发送</button></form>` : ''}` : ''}`) : '';
-  const diary = next.clues.some(c => c.id === 'C12' && c.body);
-  const ask = phase === 3 ? sheet('盘问与日记', `<p class="muted">${next.modelReady ? 'AI 依据公开记录选取回答，剩余 ' + next.remaining + ' 次。' : '当前使用原始记录。'}</p><form data-form="ask"><label>对象<select name="target" data-memo="target"><option value="chen">管家陈伯</option><option value="diary" ${diary ? '' : 'disabled'}${selected(memo.target, 'diary')}>日记回响（解读生前记录）</option></select></label><label>问题<input name="question" maxlength="220" required data-memo="question" value="${esc(memo.question)}"></label><button>提问</button></form>${memo.reply ? `<div class="clue compact"><small>${esc(memo.reply.mode)} ${esc(memo.reply.source)}</small><p>${esc(memo.reply.answer)}</p></div>` : ''}`) : '';
+  const card = next.card ? sheet('我的角色卡', `${next.brief ? next.brief.map((v,i)=>`<p><strong>${['我是谁','我亲眼知道','我想隐瞒','我最想问谁'][i]}</strong> · ${esc(v)}</p>`).join('') : ''}<details ${phase === 1 && !next.brief ? 'open' : ''}><summary>${roleName(me.role)} · 仅自己可见</summary><p class="card">${esc(next.card)}</p></details>${prefs}`) : '';
+  const clueList = next.clues.map(c => `<div class="clue" id="evidence-${c.id}" tabindex="-1"><span class="kind">${c.id} · ${c.kind}</span><h3>${esc(c.title)}</h3>${c.body ? `<p>${esc(c.body)}</p><small>${esc(c.via)}</small>` : btn('调查', 'clue', c.id, phase === 5, true)}${c.body ? threadFor(next,c.id).map(m => renderMessage(m,next.messages)).join('') : ''}
+      ${c.meaning ? `<p class="muted">${esc(c.meaning)}</p>` : ''}</div>`).join('');
+  const chat = phase >= 2 ? sheet('公开讨论', `<div class="chat">${next.messages.map(m => renderMessage(m, next.messages)).join('') || '<p class="muted">还没有发言。</p>'}</div>${phase <= 4 ? `<form data-form="message">${memo.replyTo ? `<p>回复 ${esc(next.messages.find(m=>m.id===memo.replyTo)?.by)} ${btn("取消回复","clear-cite","",false,true)}</p>` : ""}<label>发言对象<select name="recipient" data-memo="recipient"><option value="">全体</option>${next.players.filter(p=>p.id!==next.me).map(p=>`<option value="${esc(p.id)}"${selected(memo.recipient,p.id)}>${esc(p.name)}</option>`).join("")}</select></label><label>发言<textarea name="text" maxlength="500" required data-memo="discussion">${esc(memo.discussion)}</textarea></label><div class="actions"><button>发送</button>${next.prefs ? btn('整理成草稿', 'draft', '', !next.modelReady || !next.draftRemaining, true) : ''}</div></form>${memo.draft && next.prefs ? `<form data-form="send-draft"><label>草稿预览 · 确认内容后发送<textarea name="text" maxlength="500" required data-memo="draftText">${esc(memo.draft.answer)}</textarea></label><button>确认并发送</button></form>` : ''}` : ''}`) : '';
+  const diary = next.clues.find(c => c.id === 'C12' && c.body);
+  const ask = phase === 3 ? sheet('盘问与日记', `<p class="muted">${next.modelReady ? 'AI 依据公开记录选取回答，剩余 ' + next.remaining + ' 次。' : '当前使用原始记录。'}</p>${memo.target === 'diary' && diary ? `<blockquote><small>案发当日 · 生前手记</small><p>${esc(diary.body)}</p></blockquote>` : ''}<form data-form="ask"><label>对象<select name="target" data-memo="target"><option value="chen">管家陈伯</option><option value="diary" ${diary ? '' : 'disabled'}${selected(memo.target, 'diary')}>日记回响（解读生前记录）</option></select></label><label>问题<input name="question" maxlength="220" required data-memo="question" value="${esc(memo.question)}"></label><button>提问</button></form>${memo.reply ? `<div class="clue compact"><small>${esc(memo.reply.mode)} ${esc(memo.reply.source)}</small><p>${esc(memo.reply.answer)}</p></div>` : ''}`) : '';
   const vote = phase === 4 ? sheet(revised ? '提交你的判断' : '投票', next.voted ? '<p>已提交。等待其他玩家或时间结束。</p>' :
     `<form data-form="vote"><label>选择嫌疑人<select name="to" data-memo="vote" ${revised ? 'required' : ''}>
     ${revised ? '<option value="">请选择</option>' : '<option value="">弃票</option>'}
@@ -226,7 +232,7 @@ function render(next, force = false) {
     if (phase === 1) room.innerHTML = header + instruction + story + card;
     else if (phase === 5) {
       const recap = reasoningRecap(next);
-      room.innerHTML = header + recap.personal + result + recap.chain + evidenceBoard(next) + btn('返回首页', 'leave', '', false, true);
+      room.innerHTML = header + recap.personal + result + recap.chain + sheet('他们当时隐瞒了什么',(next.result.secrets || []).map(s=>`<p><strong>${esc(s.name)}</strong> · ${esc(s.secret)}</p>`).join('')) + evidenceBoard(next) + btn('返回首页', 'leave', '', false, true);
     } else {
       room.innerHTML = header + instruction + vote + shortWorkspace(next, {
         evidence: evidenceBoard(next),
@@ -281,7 +287,10 @@ room.addEventListener('input', event => {
   }
   const key = event.target.dataset.memo;
   if (key === 'draftText' && memo.draft) memo.draft.answer = event.target.value;
-  else if (key) memo[key] = event.target.value;
+  else if (key) {
+    memo[key] = event.target.value;
+    if (key === 'target') { memo.reply = null; render(state,true); }
+  }
 });
 async function act(action, data) {
   if (busy || !session) return;
@@ -304,7 +313,7 @@ async function act(action, data) {
     if (action === 'draft') memo.draft = result;
     if (['message', 'send-draft'].includes(action)) memo.discussion = '';
     if (action === 'send-draft') memo.draft = null;
-    if (['message', 'teammate', 'send-draft'].includes(action)) memo.cite = null;
+    if (['message', 'teammate', 'send-draft'].includes(action)) { memo.cite = null; memo.replyTo = null; memo.recipient = ''; memo.discussion = ''; }
     render(result.state, true);
   } catch (error) { flash(error.message); }
   finally { busy = false; timed(); }
@@ -321,13 +330,26 @@ room.addEventListener('click', async event => {
     catch { flash('邀请：' + invite + '　房间码：' + state.code); }
     return;
   }
-  if (['workspace', 'cite-clue', 'jump-clue', 'clear-cite'].includes(action)) {
+  if (['workspace', 'cite-clue', 'jump-clue', 'clear-cite','reply-message','read-diary'].includes(action)) {
+    if (action === 'read-diary') {
+      memo.target = 'diary';
+      memo.question = value === 'C12' ? '这页记载能印证哪些说法？' : '关于 ' + value + '，日记中有哪些直接记载？';
+      memo.reply = null;
+      memo.panel = 'discussion';
+    }
     if (action === 'workspace') memo.panel = value;
-    if (action === 'clear-cite') memo.cite = null;
-    if (action === 'cite-clue') { memo.cite = value; memo.panel = 'discussion'; }
+    if (action === 'clear-cite') { memo.cite = null; memo.replyTo = null; }
+    if (action === 'reply-message') {
+      const parent = state.messages.find(m => m.id === value);
+      if (!parent) return;
+      memo.replyTo = value; memo.cite = parent.cite; memo.panel = 'discussion';
+    }
+    if (action === 'cite-clue') { memo.replyTo = null; memo.cite = value; memo.panel = 'discussion';
+      memo.discussion ||= state.clues.find(c=>c.id===value)?.question || '哪些是你亲眼看到的？'; }
     if (action === 'jump-clue') memo.panel = 'evidence';
     render(state, true);
     if (action === 'cite-clue') room.querySelector('[name="text"]')?.focus();
+    if (action === 'read-diary') room.querySelector('[name="question"]')?.focus();
     if (action === 'jump-clue') document.getElementById('evidence-' + value)?.focus();
     return;
   }
@@ -350,13 +372,21 @@ room.addEventListener('submit', event => {
   const action = event.target.dataset.form;
   if (!action) return;
   const data = Object.fromEntries(new FormData(event.target));
+  let route = action;
+  if (action === 'message') {
+    if (memo.replyTo) data.replyTo = memo.replyTo;
+    const target = state.players.find(p => p.id === data.recipient);
+    if (target?.bot) { data.targetBot = target.id; route = 'teammate'; }
+    else if (target) data.targetPlayer = target.id;
+    delete data.recipient;
+  }
   if (action === 'vote') {
     if (!data.to || data.to === 'abstain') data.to = null;
     if (state.flowVersion === 2) data.clueIds = data.to ? new FormData(event.target).getAll('clueIds') : [];
   }
   if (['message', 'teammate', 'send-draft'].includes(action) && memo.cite) data.clueId = memo.cite;
   if (action === 'send-draft') data.draftId = memo.draft?.draftId;
-  if (action === 'teammate') {
+  if (route === 'teammate') {
     const details = [data.targetBot, data.clueId, data.text].join(':');
     if (questionRequest?.details !== details) {
       const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -364,7 +394,7 @@ room.addEventListener('submit', event => {
     }
     data.requestId = questionRequest.id;
   }
-  act(action, data);
+  act(route, data);
 });
 async function poll() {
   if (!session || busy || polling) return;
