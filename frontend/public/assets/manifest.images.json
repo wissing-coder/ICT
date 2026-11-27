@@ -1,0 +1,151 @@
+[
+  {
+    "id": "xuan-1",
+    "path": "/assets/portraits/xuan-1.webp",
+    "role": "xuan",
+    "width": 310,
+    "height": 620,
+    "bytes": 13384,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "xuan-1-thumb",
+    "path": "/assets/portraits/xuan-1-thumb.webp",
+    "role": "xuan",
+    "width": 128,
+    "height": 148,
+    "bytes": 1742,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "xuan-2",
+    "path": "/assets/portraits/xuan-2.webp",
+    "role": "xuan",
+    "width": 311,
+    "height": 620,
+    "bytes": 22822,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "xuan-2-thumb",
+    "path": "/assets/portraits/xuan-2-thumb.webp",
+    "role": "xuan",
+    "width": 128,
+    "height": 148,
+    "bytes": 1904,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "yu-1",
+    "path": "/assets/portraits/yu-1.webp",
+    "role": "yu",
+    "width": 310,
+    "height": 620,
+    "bytes": 16964,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "yu-1-thumb",
+    "path": "/assets/portraits/yu-1-thumb.webp",
+    "role": "yu",
+    "width": 128,
+    "height": 148,
+    "bytes": 1794,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "yu-2",
+    "path": "/assets/portraits/yu-2.webp",
+    "role": "yu",
+    "width": 310,
+    "height": 620,
+    "bytes": 19430,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "yu-2-thumb",
+    "path": "/assets/portraits/yu-2-thumb.webp",
+    "role": "yu",
+    "width": 128,
+    "height": 148,
+    "bytes": 2002,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "lin-1",
+    "path": "/assets/portraits/lin-1.webp",
+    "role": "lin",
+    "width": 310,
+    "height": 620,
+    "bytes": 16246,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "lin-1-thumb",
+    "path": "/assets/portraits/lin-1-thumb.webp",
+    "role": "lin",
+    "width": 128,
+    "height": 148,
+    "bytes": 1880,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "lin-2",
+    "path": "/assets/portraits/lin-2.webp",
+    "role": "lin",
+    "width": 311,
+    "height": 620,
+    "bytes": 18054,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "lin-2-thumb",
+    "path": "/assets/portraits/lin-2-thumb.webp",
+    "role": "lin",
+    "width": 128,
+    "height": 148,
+    "bytes": 1934,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "chen",
+    "path": "/assets/portraits/chen.webp",
+    "role": "chen",
+    "width": 310,
+    "height": 620,
+    "bytes": 15416,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "chen-thumb",
+    "path": "/assets/portraits/chen-thumb.webp",
+    "role": "chen",
+    "width": 128,
+    "height": 148,
+    "bytes": 1700,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "account-scene",
+    "path": "/assets/scenes/account.webp",
+    "width": 1440,
+    "height": 810,
+    "bytes": 160352,
+    "source": "Original fictional game scene generated on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  }
+]

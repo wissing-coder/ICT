@@ -1,0 +1,232 @@
+[
+  {
+    "id": "xuan-1",
+    "path": "/assets/portraits/xuan-1.webp",
+    "role": "xuan",
+    "width": 310,
+    "height": 620,
+    "bytes": 13384,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "xuan-1-thumb",
+    "path": "/assets/portraits/xuan-1-thumb.webp",
+    "role": "xuan",
+    "width": 128,
+    "height": 148,
+    "bytes": 1742,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "xuan-2",
+    "path": "/assets/portraits/xuan-2.webp",
+    "role": "xuan",
+    "width": 311,
+    "height": 620,
+    "bytes": 22822,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "xuan-2-thumb",
+    "path": "/assets/portraits/xuan-2-thumb.webp",
+    "role": "xuan",
+    "width": 128,
+    "height": 148,
+    "bytes": 1904,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "yu-1",
+    "path": "/assets/portraits/yu-1.webp",
+    "role": "yu",
+    "width": 310,
+    "height": 620,
+    "bytes": 16964,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "yu-1-thumb",
+    "path": "/assets/portraits/yu-1-thumb.webp",
+    "role": "yu",
+    "width": 128,
+    "height": 148,
+    "bytes": 1794,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "yu-2",
+    "path": "/assets/portraits/yu-2.webp",
+    "role": "yu",
+    "width": 310,
+    "height": 620,
+    "bytes": 19430,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "yu-2-thumb",
+    "path": "/assets/portraits/yu-2-thumb.webp",
+    "role": "yu",
+    "width": 128,
+    "height": 148,
+    "bytes": 2002,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "lin-1",
+    "path": "/assets/portraits/lin-1.webp",
+    "role": "lin",
+    "width": 310,
+    "height": 620,
+    "bytes": 16246,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "lin-1-thumb",
+    "path": "/assets/portraits/lin-1-thumb.webp",
+    "role": "lin",
+    "width": 128,
+    "height": 148,
+    "bytes": 1880,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "lin-2",
+    "path": "/assets/portraits/lin-2.webp",
+    "role": "lin",
+    "width": 311,
+    "height": 620,
+    "bytes": 18054,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "lin-2-thumb",
+    "path": "/assets/portraits/lin-2-thumb.webp",
+    "role": "lin",
+    "width": 128,
+    "height": 148,
+    "bytes": 1934,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "chen",
+    "path": "/assets/portraits/chen.webp",
+    "role": "chen",
+    "width": 310,
+    "height": 620,
+    "bytes": 15416,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "chen-thumb",
+    "path": "/assets/portraits/chen-thumb.webp",
+    "role": "chen",
+    "width": 128,
+    "height": 148,
+    "bytes": 1700,
+    "source": "Original fictional artwork generated for this project on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "account-scene",
+    "path": "/assets/scenes/account.webp",
+    "width": 1440,
+    "height": 810,
+    "bytes": 160352,
+    "source": "Original fictional game scene generated on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "reading",
+    "path": "/assets/music/reading.mp3",
+    "phase": [
+      0,
+      1,
+      5
+    ],
+    "title": "Whispers in the Fog",
+    "source": "https://opengameart.org/content/whispers-in-the-fog",
+    "download": "https://opengameart.org/sites/default/files/whispers_in_the_fog.ogg",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "retrieved": "2026-11-26",
+    "durationSeconds": 45,
+    "bytes": 360532,
+    "sha256": "12586fd05ff653b3da46fd13b1bf2adf0c0fc079a587a7f2ad1edbe0b58541ad",
+    "modifications": "45-second seamless crossfade loop; loudness normalization; 64kbps MP3"
+  },
+  {
+    "id": "investigation",
+    "path": "/assets/music/investigation.mp3",
+    "phase": [
+      2,
+      3
+    ],
+    "title": "Ancient Mysteries",
+    "source": "https://opengameart.org/content/ancient-mysteries",
+    "download": "https://opengameart.org/sites/default/files/ancient_mysteries.mp3",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "retrieved": "2026-11-26",
+    "durationSeconds": 45,
+    "bytes": 360843,
+    "sha256": "1a2327e3d6552a8e406b3d727c2b9a1f1c0a8c4e67bd8b8584fa04d702e955fa",
+    "modifications": "45-second seamless crossfade loop; loudness normalization; 64kbps MP3"
+  },
+  {
+    "id": "vote",
+    "path": "/assets/music/vote.mp3",
+    "phase": [
+      4
+    ],
+    "title": "CC0 - Mystery",
+    "source": "https://opengameart.org/content/cc0-mystery",
+    "download": "https://opengameart.org/sites/default/files/mystery%20exploration.mp3",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "retrieved": "2026-11-26",
+    "durationSeconds": 45,
+    "bytes": 360601,
+    "sha256": "d65edb9805e31308426ef42dac43dec2d6e6c9db322c20b39ff8686997d31fd9",
+    "modifications": "45-second seamless crossfade loop; loudness normalization; 64kbps MP3"
+  },
+  {
+    "id": "hall-scene",
+    "path": "/assets/scenes/hall.webp",
+    "width": 1440,
+    "height": 810,
+    "bytes": 188072,
+    "source": "Original fictional game scene generated on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "bedroom-scene",
+    "path": "/assets/scenes/bedroom.webp",
+    "width": 1440,
+    "height": 810,
+    "bytes": 158556,
+    "source": "Original fictional game scene generated on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  },
+  {
+    "id": "courtyard-scene",
+    "path": "/assets/scenes/courtyard.webp",
+    "width": 1440,
+    "height": 810,
+    "bytes": 182530,
+    "source": "Original fictional game scene generated on 2026-11-26",
+    "license": "AI-generated original game artwork; not represented as CC0"
+  }
+]
