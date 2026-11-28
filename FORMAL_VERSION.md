@@ -1,6 +1,6 @@
 # 迷案·回声：人物、音乐与 2D 调查候选版
 
-更新：2026-11-27。此目录实现了 Vue 3 + Spring Boot 4.1.2 / JDK 25 路线，可在独立本地实例试玩。当前公网 Node.js 站点仍保留原版，本轮没有切换线上服务。
+更新：2026-11-28。后端已按用户要求改为在团队 `feat/backend-core/backend/` 上继续开发，沿用 `com.mian.backend.BackendApplication`、Maven Wrapper、统一响应、错误码和 MySQL/Redis/JPA 配置；独立的 `cn.echo` 应用已移除。来源与扩展范围见 [后端基线说明](backend/BACKEND_CORE_ORIGIN.md)。当前公网 Node.js 站点仍保留原版，本轮没有切换线上服务。
 
 ## 现在可以玩什么
 
@@ -13,7 +13,7 @@
 
 ## 直接试玩
 
-本机已准备 `release/formal-2.0/mian-echo.jar` 和项目内独立 JDK；这些下载的工具、运行包和房间数据不进入源码版本库。
+本机运行包为 `release/formal-2.0/backend.jar`，由团队原工程打包；下载的工具、运行包和房间数据不进入源码版本库。
 
 先双击根目录 `start-formal.cmd`，保持窗口开启，再打开：
 
@@ -25,20 +25,24 @@
 powershell -File tools/start-formal.ps1 -Port 8082
 ```
 
-停止用 Ctrl+C。`backend/data/echo.mv.db` 保存本机正式候选版房间，原版 `game/data/` 不会导入或覆盖。刷新使用本人设备中保存的凭据恢复。换浏览器不等于原玩家重连。
+停止用 Ctrl+C。启动器显式选择 `preview` profile；它用 `backend/data/echo.mv.db` 保存本机试玩房间，也可读取此前候选版的快照。原版 `game/data/` 不会导入或覆盖。刷新使用本人设备中保存的凭据恢复。换浏览器不等于原玩家重连。
 
 ## 从源码构建
 
-准备 JDK 25、Maven 3.6.3+、Node.js 24。可用系统安装，也可通过脚本参数指定位置；脚本会优先使用项目 `.tools/` 已下载工具。
+准备 JDK 25、Node.js 24。Maven 使用团队工程自带的 `backend/mvnw.cmd` / `backend/mvnw`；本机已验证 Wrapper 的 Maven 3.10.1 可以下载并运行。也可用构建脚本参数指定已有 Maven。
 
 ```powershell
 powershell -File tools/build-formal.ps1
 powershell -File tools/start-formal.ps1
 ```
 
-分开开发：在 `backend/` 执行 `mvn spring-boot:run`；另一个终端运行 `npm ci --prefix frontend` 和 `npm run dev --prefix frontend`。Vite 将 `/api` 转发到本机 8080。正式构建把页面及素材打入同一个 JAR，不需要用户加载外部字体或前端 CDN。
+分开开发：在 `backend/` 执行 `./mvnw spring-boot:run`（Windows 用 `mvnw.cmd`）；另一个终端运行 `npm ci --prefix frontend` 和 `npm run dev --prefix frontend`。默认启动需准备 MySQL、Redis 与数据库环境变量。无数据库的页面试玩可显式设置 `SPRING_PROFILES_ACTIVE=preview`。Vite 将 `/api` 转发到本机 8080，正式构建把页面及素材打入原 backend JAR。
 
-默认 H2 文件库用于隔离试玩，MySQL 可通过 `DB_URL`、`DB_USER`、`DB_PASSWORD` 接入独立数据库；实际 MySQL 环境尚未联调。当前实现以 `echo_rooms` 表保存完整房间快照，不会改动团队现有九张业务表。将快照拆为团队业务表属于下一次接口迁移，不能直接宣称已经完成。
+默认配置沿用团队 MySQL/Redis 路线，`DB_URL`、`DB_USER`、`DB_PASSWORD` 和 `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` 由环境注入。Hibernate 保持 `ddl-auto=none`。先在选定数据库明确执行 `sql/migrations/20261128_room_snapshot.sql`，业务代码不再自动建表。
+
+当前游戏快照通过 Spring Data JPA 的实体和 Repository 读写 `echo_rooms`；原有九张业务表不变。已在独立 MySQL 8.0 / Redis 7 容器中验证连接、JPA 写入、整局流程与重启恢复。将游戏状态完整映射到团队九张表、实现 Redis 跨实例匹配与锁仍是后续工作，不能把这些当作已完成。
+
+`preview` / `test` 是明确启用的 H2 试玩及测试配置，不替代默认 MySQL 配置。H2 的专用 SQL 也独立于团队业务表。
 
 本版本只运行一个服务实例。Redis 不是运行前提，也没有实现跨实例匹配。
 
@@ -49,8 +53,11 @@ powershell -File tools/start-formal.ps1
 | `frontend/src/App.vue` | 首页、房间、调查、讨论、指认与个人复盘 |
 | `frontend/src/components/MusicPlayer.vue` | 常驻音乐控制，独立于房间轮询 |
 | `frontend/public/assets/manifest.json` | 每件图片和音乐的路径、大小、来源及许可 |
-| `backend/src/main/java/cn/echo/game/GameService.java` | 服务端房间与阶段规则、角色权限、匹配、调查触发 |
-| `backend/src/main/java/cn/echo/game/TeammateModel.java` | 可选模型从许可答法中选择，异常回退 |
+| `backend/src/main/java/com/mian/backend/BackendApplication.java` | 团队原启动类，唯一应用入口 |
+| `backend/src/main/java/com/mian/backend/common/` | 团队统一响应、错误码与异常处理 |
+| `backend/src/main/java/com/mian/backend/game/GameService.java` | 在原工程中接入的房间、阶段、匹配与调查规则 |
+| `backend/src/main/java/com/mian/backend/game/TeammateModel.java` | 可选模型从许可答法中选择，异常回退 |
+| `backend/src/main/java/com/mian/backend/persistence/` | JPA 实体、Repository 与事务存储 |
 | `backend/src/main/resources/cases/tingyuxuan-2.json` | 冻结的案件包；包含私卡和真相，只放服务端 |
 | `backend/src/test/` | 状态、隔离、并发、持久化和模拟模型测试 |
 | `tools/formal-smoke.mjs` | 实际 HTTP 整局、重启恢复、头像与音频验收 |
@@ -65,14 +72,17 @@ powershell -File tools/start-formal.ps1
 
 ## 接口约定
 
-请求和返回均为 JSON；房间凭据使用 `Authorization: Bearer <token>`，房间码本身不能读取私卡。新代码使用独立正式版协议，原 Node 协议由旧服务继续支持。
+请求和返回均为 JSON。所有 `/api` 接口沿用团队 `{code,msg,data}`：`code === 0` 才成功，业务失败的 `data` 为 null，由原全局异常组件返回。房间凭据使用 `Authorization: Bearer <token>`，房间码本身不能读取私卡。`/healthz` 是原试玩兼容的基础设施探针；`/api/health` 则保持团队原响应。
 
 | 接口 | 主要参数或返回 |
 |---|---|
 | `GET /api/bootstrap` | 公共角色、六个外观、备案展示配置 |
+| `GET /api/health` | 团队原接口，返回 `{code:0,msg:"success",data:"UP"}` |
+| `GET /api/game/role` | 本人角色 VO：`characterName/publicInfo/privateSecret/playGuide/avatarColor`，附加外观 ID |
+| `POST /api/game/ask-npc` | 团队原路径，`npcId:1/2`、`question`；凭 token 定位本人房间，阶段与记录授权照常校验 |
 | `POST /api/create`、`/api/join`、`/api/solo` | `name`、`role`、`avatarId`；加入时带 `code`；返回本人 `token` 与 `state` |
 | `POST /api/match`、`GET /api/match`、`POST /api/match/cancel` | 入队携带外观，查询和取消凭私有 token；匹配成功返回房间 |
-| `GET /api/room/{code}/state` | 本人视图、`serverTime`、`phaseDeadline`（均为毫秒时间戳）、`players[].isReady` |
+| `GET /api/room/{code}/state` | 本人视图、毫秒 `serverTime`、团队约定的时间字符串 `phaseDeadline`，附加毫秒 `phaseDeadlineMs`、`players[].isReady` |
 | `POST /api/room/{code}/seat`、`ready`、`start` | 选角色/外观；`ready` 使用明确布尔值，重复请求不反转 |
 | `POST /api/room/{code}/recruit`、`cancel-recruit`、`add-bot` | 只有房主可操作，竞争席位在服务端同一锁内处理 |
 | `POST /api/room/{code}/phase-ready` | `phase` 必须与服务端当前阶段一致 |
@@ -94,6 +104,6 @@ powershell -File tools/start-formal.ps1
 
 自动化与桌面浏览器通过后，仍需三组未读过真相的真人盲测，以及 iPhone Safari、Android Chrome 的真机音乐/后台/键盘检查。当前没有这些实测结论。
 
-独立测试实例先使用独立端口和数据库。固定域名切换前备份原 Node 数据、保留旧程序和 Caddy 配置。新旧房间格式不同，已有 Node 房间应由原服务完成，不能将旧 JSON 直接当成新库导入。
+独立测试实例先使用独立端口和数据库。固定域名切换前备份原 Node 数据、保留旧程序和 Caddy 配置。已有 Node 房间仍由原服务完成，不能将其 JSON 直接当作新库导入；此前正式候选版的 `echo_rooms` 快照结构保持兼容。
 
 验收步骤与真实记录见 `FORMAL_ACCEPTANCE.md`。决斗仅保留为远期支线，本版本没有入口、道具效果或胜负规则。

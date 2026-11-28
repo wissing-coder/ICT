@@ -1,4 +1,4 @@
-package cn.echo.game;
+package com.mian.backend.game;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;

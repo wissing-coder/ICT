@@ -11,5 +11,8 @@ frontend/node_modules/
 frontend/dist/
 backend/target/
 backend/data/
+data/
 *.log
+application-local.yml
+application-local.properties
 

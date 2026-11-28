@@ -1,10 +1,12 @@
-package cn.echo.game;
+package com.mian.backend.game;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.mian.backend.common.BizException;
+import com.mian.backend.common.ErrorCode;
+import com.mian.backend.persistence.RoomStateStore;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.security.*;
@@ -27,7 +29,7 @@ public class GameService {
     final Map<String,Pending> pending=new HashMap<>();
     final java.util.concurrent.ExecutorService modelWorkers=java.util.concurrent.Executors.newFixedThreadPool(4);
     TeammateModel model=new TeammateModel();
-    final JdbcTemplate db;
+    final RoomStateStore store;
     final long minute,presence;
     final String icp,police,policeUrl;
 
@@ -46,11 +48,21 @@ public class GameService {
         public Set<String> phaseReady=new HashSet<>(),events=new LinkedHashSet<>(),inventory=new LinkedHashSet<>(),botActions=new HashSet<>();
         public List<Map<String,Object>> messages=new ArrayList<>(),exploration=new ArrayList<>();
         public Map<String,Map<String,Object>> requests=new LinkedHashMap<>();
+        public Map<String,Integer> npcAsked=new HashMap<>();
     }
     static class Ticket { String name,role,avatar,token; long since,seen; }
     record Pending(String botId,String questionId,int phase,long deadline,String fallback,String clue,String to){}
-    public static class Failure extends RuntimeException {
-        final int status; Failure(int s,String message){super(message);status=s;}
+    public static class Failure extends BizException {
+        Failure(int status,String message){super(errorCode(status,message),message);}
+        private static ErrorCode errorCode(int status,String message){
+            if(status==401||status==403)return ErrorCode.UNAUTHORIZED;
+            if(status==404&&message.contains("房间"))return ErrorCode.ROOM_NOT_FOUND;
+            if(message.contains("已满"))return ErrorCode.ROOM_FULL;
+            if(message.contains("重复指认")||message.contains("已投"))return ErrorCode.ALREADY_VOTED;
+            if(status==429||message.contains("次数已用完"))return ErrorCode.QUOTA_EXHAUSTED;
+            if(status==400||status==404)return ErrorCode.PARAM_INVALID;
+            return ErrorCode.PHASE_NOT_ALLOWED;
+        }
     }
     static void need(boolean ok,String message){ if(!ok) throw new Failure(409,message); }
     static Map<String,Object> m(Object...pairs){Map<String,Object> r=new LinkedHashMap<>();for(int i=0;i<pairs.length;i+=2)r.put((String)pairs[i],pairs[i+1]);return r;}
@@ -61,23 +73,37 @@ public class GameService {
     static long now(){return System.currentTimeMillis();}
     @jakarta.annotation.PreDestroy void shutdown(){modelWorkers.shutdownNow();}
 
-    public GameService(JdbcTemplate db,@Value("${game.minute-ms}") long minute,@Value("${game.presence-ms}")long presence,
+    public GameService(RoomStateStore store,@Value("${game.minute-ms}") long minute,@Value("${game.presence-ms}")long presence,
             @Value("${game.icp}")String icp,@Value("${game.police-number}")String police,@Value("${game.police-url}")String policeUrl) throws Exception {
-        this.db=db;this.minute=minute;this.presence=presence;this.icp=icp;this.police=police;this.policeUrl=policeUrl;
+        this.store=store;this.minute=minute;this.presence=presence;this.icp=icp;this.police=police;this.policeUrl=policeUrl;
         try(var in=new ClassPathResource("cases/tingyuxuan-2.json").getInputStream()) {cases.put(VERSION,json.readValue(in,new TypeReference<>(){}));}
-        db.execute("CREATE TABLE IF NOT EXISTS echo_rooms (code VARCHAR(12) PRIMARY KEY, state_json LONGTEXT NOT NULL)");
-        for(String state:db.query("SELECT state_json FROM echo_rooms",(rs,n)->rs.getString(1))) {
+        for(String state:store.loadAll()) {
             Room r=json.readValue(state,Room.class);rooms.put(r.code,r);
         }
     }
     Map<String,Object> content(Room r){var c=cases.get(r.caseVersion);need(c!=null,"该房间案件版本需由对应旧版本打开。");return c;}
     @SuppressWarnings("unchecked") List<Map<String,Object>> clues(Room r){return (List<Map<String,Object>>)content(r).get("clues");}
     @SuppressWarnings("unchecked") Map<String,Object> object(Room r,String key){return (Map<String,Object>)content(r).get(key);}
-    void save(Room r){try{String s=json.writeValueAsString(r);if(db.update("UPDATE echo_rooms SET state_json=? WHERE code=?",s,r.code)==0)db.update("INSERT INTO echo_rooms(code,state_json) VALUES (?,?)",r.code,s);}catch(Exception ex){throw new IllegalStateException("房间保存失败",ex);}}
+    void save(Room r){try{store.save(r.code,json.writeValueAsString(r));}catch(Exception ex){throw new IllegalStateException("房间保存失败",ex);}}
     void limit(String key,int maximum){long[] b=limits.computeIfAbsent(key,k->new long[]{now()+60000,0});if(now()>b[0]){b[0]=now()+60000;b[1]=0;}if(++b[1]>maximum)throw new Failure(429,"操作过于频繁，请稍后再试。");}
-    String token(String auth){need(auth.startsWith("Bearer ")&&auth.length()<200,"请重新进入房间。");return auth.substring(7);}
+    String token(String auth){if(!auth.startsWith("Bearer ")||auth.length()>=200)throw new Failure(401,"请重新进入房间。");return auth.substring(7);}
     Room room(String code){Room r=rooms.get(code);if(r==null)throw new Failure(404,"未找到房间，请检查房间码。");content(r);return r;}
     Player me(Room r,String auth){String d=hash(token(auth));Player p=r.players.stream().filter(x->!x.bot&&d.equals(x.digest)).findFirst().orElseThrow(()->new Failure(403,"没有该房间的访问权限。"));p.seen=now();return p;}
+    Room authorizedRoom(String auth){String d=hash(token(auth));return rooms.values().stream().filter(r->r.players.stream().anyMatch(p->!p.bot&&d.equals(p.digest))).findFirst().orElseThrow(()->new Failure(401,"请先进入房间。"));}
+    public synchronized RoleView role(String auth){
+        Room r=authorizedRoom(auth);Player p=me(r,auth);tick(r);need(r.phase>0&&p.role!=null,"开场后才能读取私密角色卡。");
+        @SuppressWarnings("unchecked") var brief=(List<String>)object(r,"briefs").get(p.role);
+        return new RoleView(NAMES.get(p.role),brief.getFirst(),(String)object(r,"cards").get(p.role),brief.get(3),Map.of("xuan","#36536b","yu","#326052","lin","#706548").get(p.role),avatar(p));
+    }
+    public record RoleView(String characterName,String publicInfo,String privateSecret,String playGuide,String avatarColor,String avatarId){}
+    public synchronized Object askNpc(String auth,Map<String,Object> body){
+        long start=now();Room r=authorizedRoom(auth);Player p=me(r,auth);String npc=Objects.equals(body.get("npcId"),1)?"chen":Objects.equals(body.get("npcId"),2)?"diary":"";
+        need(!npc.isEmpty(),"npcId 只能为 1（陈伯）或 2（日记回响）。");
+        var request=m("phase",r.phase,"npc",npc,"text",body.get("question"));
+        if(body.containsKey("clueId"))request.put("clueId",body.get("clueId"));
+        action(r.code,"ask",request,auth);var answer=r.messages.getLast();
+        return m("npcName",answer.get("by"),"answer",answer.get("text"),"newClue",null,"remainQuota",15-r.npcAsked.getOrDefault(npc,0),"latencyMs",now()-start);
+    }
     Player newPlayer(Room r,String name,String token){Player p=new Player();p.id=uid();p.name=name;p.digest=hash(token);p.seen=now();r.players.add(p);return p;}
     Room create(String mode){need(rooms.size()<500,"当前试玩房间已满。");Room r=new Room();do{r.code=UUID.randomUUID().toString().substring(0,8).toUpperCase();}while(rooms.containsKey(r.code));r.mode=mode;rooms.put(r.code,r);return r;}
     String avatar(String role,String value){need(ROLES.contains(role),"请选择有效角色。");if(value.isBlank())return role+"-1";need(value.equals(role+"-1")||value.equals(role+"-2"),"外观与角色不符。");return value;}
@@ -192,7 +218,7 @@ public class GameService {
 
     public synchronized Object action(String code,String action,Map<String,Object>b,String auth){
         Room r=room(code);Player p=me(r,auth);tick(r);limit("action:"+p.id,100);
-        if(action.equals("leave")){need(r.phase==0,"开场后请保留房间凭据以便重连。");r.players.remove(p);r.recruiting=0;if(r.players.isEmpty()){rooms.remove(r.code);db.update("DELETE FROM echo_rooms WHERE code=?",r.code);}else save(r);return m("left",true);}
+        if(action.equals("leave")){need(r.phase==0,"开场后请保留房间凭据以便重连。");r.players.remove(p);r.recruiting=0;if(r.players.isEmpty()){rooms.remove(r.code);store.delete(r.code);}else save(r);return m("left",true);}
         String req=string(b,"requestId");need(req.length()<=80,"请求标识过长。");String requestKey=p.id+":"+req;
         if(!req.isEmpty()&&r.requests.containsKey(requestKey))return m("state",view(r,p),"outcome",r.requests.get(requestKey));
         Map<String,Object> outcome=m("text","操作已完成。");
@@ -218,6 +244,7 @@ public class GameService {
                 String npc=string(b,"npc");need(List.of("chen","diary").contains(npc),"请选择陈伯或日记回响。");
                 @SuppressWarnings("unchecked") var dialogues=(Map<String,Map<String,Object>>)object(r,"exploration").get("dialogues");var node=dialogues.get(npc);String id=(String)node.get("record");need(r.clues.containsKey(id),"请先取得对应原始记录，再来询问。");
                 String text=npc.equals("diary")?clues(r).stream().filter(c->c.get("id").equals(id)).findFirst().orElseThrow().get("body")+"\n\n读法边界："+node.get("boundary"):(String)node.get(r.clues.containsKey("C09")?"withRegister":"default");
+                int count=r.npcAsked.getOrDefault(npc,0);need(count<15,"本局该人物的盘问次数已用完。");r.npcAsked.put(npc,count+1);
                 message(r,p.id,p.name,question,clue,null,(String)node.get("id"));String qid=(String)r.messages.getLast().get("id");message(r,(String)node.get("id"),(String)node.get("name"),text,id,qid,p.id);}
             case "inspect","present","compare" -> {currentPhase(r,b);need(r.phase==3,"请在搜证对质阶段探索账房。");outcome=explore(r,p,action,string(b,"target"),string(b,"itemId"));}
             case "vote" -> {
@@ -249,6 +276,9 @@ public class GameService {
         int i=0;for(var clue:clues(r)){String id=(String)clue.get("id");boolean open=r.clues.containsKey(id);if(((Number)clue.get("phase")).intValue()<=r.phase)publicClues.add(m("id",id,"title",clue.get("title"),"kind",clue.get("kind"),"body",open?clue.get("body"):null,"via",r.clues.get(id),"question",open?questions.get(i):null,"meaning",r.phase==5?clue.get("meaning"):null,"related",r.phase==5?related.get(i):null));i++;}
         Map<String,Object> result=m("code",r.code,"caseVersion",r.caseVersion,"phase",r.phase,"since",r.since,"serverTime",now(),"phaseDeadline",r.since+MINUTES[r.phase]*minute,"phaseReady",r.phaseReady,"phaseBlock",r.phase>=1&&r.phase<=3?block(r):"","mode",r.mode,"host",!r.mode.equals("quick")&&r.players.getFirst()==me,"me",me.id,"recruiting",r.recruiting>0,"canAddBots",botEligible(r),"roles",c.get("roles"),"opening",c.get("opening"),"players",r.players.stream().map(p->m("id",p.id,"name",p.name,"role",p.role,"avatarId",avatar(p),"isReady",p.ready,"isAI",p.bot,"online",p.bot||now()-p.seen<presence)).toList(),"card",r.phase>0?object(r,"cards").get(me.role):null,"brief",r.phase>0?object(r,"briefs").get(me.role):null,"clues",publicClues,"messages",r.messages,"voted",r.votes.containsKey(me.id),"votedCount",r.votes.size(),"inventory",r.phase>=3?r.inventory:List.of(),"events",r.phase>=3?r.events:List.of(),"exploration",r.phase>=3?r.exploration:List.of(),"aiRemaining",60-r.asked,"teammatePending",pending.entrySet().stream().filter(e->e.getKey().startsWith(r.code+":" )).map(e->m("botId",e.getValue().botId,"questionId",e.getValue().questionId)).toList());
         if(r.phase==5){Player winner=r.players.stream().filter(p->r.votes.values().stream().filter(p.id::equals).count()>=2).findFirst().orElse(null);String choice=r.votes.getOrDefault(me.id,"");result.put("result",m("label",object(r,"verdict").get(winner==null?"split":winner.role.equals("xuan")?"solved":"wrong"),"myChoice",r.players.stream().filter(p->p.id.equals(choice)).map(p->p.name).findFirst().orElse("弃票"),"myClueIds",r.voteClues.getOrDefault(me.id,List.of()),"votes",r.players.stream().map(p->m("from",p.id,"target",r.votes.getOrDefault(p.id,""),"clueIds",r.voteClues.getOrDefault(p.id,List.of()))).toList(),"timeline",c.get("timeline"),"secrets",ROLES.stream().map(role->m("name",NAMES.get(role),"secret",((List<?>)object(r,"briefs").get(role)).get(2))).toList()));}
+        long deadline=r.since+MINUTES[r.phase]*minute;
+        result.put("phaseDeadlineMs",deadline);
+        result.put("phaseDeadline",java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(deadline),java.time.ZoneId.of("Asia/Shanghai")).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")));
         if(r.phase>=3){result.put("scenes",object(r,"exploration").get("scenes"));result.put("items",object(r,"exploration").get("items"));}
         // Snapshot must be detached before releasing the monitor: the HTTP serializer runs later.
         return json.convertValue(result,new TypeReference<Map<String,Object>>(){});
