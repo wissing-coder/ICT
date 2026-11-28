@@ -1,6 +1,29 @@
 # 正式候选版验收记录
 
-记录日期：2026-11-27。测试对象：Vue 3 + Spring Boot 4.1.2、JDK 25、H2，单服务实例，本机 Windows。以下自动化和浏览器记录不是真人盲测结论。
+当前记录日期：2026-11-28。以下自动化和浏览器记录不是真人盲测结论。
+
+## 2026-11-28：对齐团队后端后的检查
+
+基线：`feat/backend-core/backend/`，Spring Boot 4.1.2 + JDK 25，入口 `com.mian.backend.BackendApplication`。`cn.echo` 应用已移除。基线来源与扩展范围见 `backend/BACKEND_CORE_ORIGIN.md`。
+
+| 检查 | 实际结果 |
+|---|---|
+| 常规后端检查 | 24 项通过：原工程上下文 1、游戏 15、模型 4、统一接口契约 4 |
+| 统一响应 | `/api/health` 保持 `code/msg/data` 和 `UP`；游戏成功/业务失败、JSON 错误、私卡与盘问接口也使用该约定 |
+| 时间兼容 | `serverTime` 为毫秒；`phaseDeadline` 保留字符串；附加 `phaseDeadlineMs`，Vue 使用单调时钟推进 |
+| JPA 持久化 | 游戏存储改用 Spring Data JPA；H2 与真实 MySQL 均完成整局与 JVM 重启后恢复 |
+| MySQL/Redis 实测 | 在两个仅本机可访问的独立临时容器验证，2 项通过：MySQL 8.0 元数据与 Redis PONG、JPA 提交与重新读取；其他项目容器与数据库未修改 |
+| HTTP H2 整局 | 独立目录启动原 backend JAR，现场→调查链→AI→指认→复盘、好友补 AI、三角色匹配、重启恢复及音频 Range 均通过；一次本地 AI 接口约 5ms |
+| HTTP MySQL 整局 | 同样流程与重启恢复通过；一次本地 AI 接口约 15ms。不等同于手机或公网端到端延迟 |
+| 原工程构建方式 | Maven Wrapper 实际下载并运行 Maven 3.10.1 成功；JPA/WebMVC/Redis/Validation 依赖全部保留 |
+| 前端构建 | Vue 构建通过，已适配统一响应；头像、音乐与调查资源未改变 |
+| 迁移后浏览器 | 旧房间可直接恢复；独立会话完成单人开场、私卡、倒计时、阶段确认、证物追问 AI 与刷新重连，未见浏览器 error 记录。没有把这次检查当作真机盲测 |
+
+常规检查使用 `test` profile，独立基础设施检查由 `ECHO_INFRA_INTEGRATION=yes` 明确启用。生产默认维持 MySQL 与 `ddl-auto=none`，快照表通过明确执行 SQL 准备，不由 Hibernate 或游戏代码自动建表。
+
+## 2026-11-27：原候选版历史记录
+
+下表记录此前独立候选版的检查，不代表新后端在所有真实设备上已验收。
 
 ## 已完成
 
@@ -27,9 +50,9 @@
 npm ci --prefix frontend
 npm run build --prefix frontend
 # JAVA_HOME 指向 JDK 25，mvn 可使用项目 .tools 下已下载版本
-mvn -f backend/pom.xml verify
+backend/mvnw.cmd -f backend/pom.xml verify
 node --test game/game.test.mjs
-node tools/formal-smoke.mjs release/formal-2.0/mian-echo.jar
+node tools/formal-smoke.mjs backend/target/backend-0.0.1-SNAPSHOT.jar
 ```
 
 HTTP 测试使用本机端口 19879，以及 `.tools/smoke-*.mv.db` 独立数据库，不写入实际试玩房间。日志在 `.tools/formal-smoke.log`，不应上传。
@@ -39,7 +62,7 @@ HTTP 测试使用本机端口 19879，以及 `.tools/smoke-*.mv.db` 独立数据
 - 三组未读过真相的三人真人盲测：首个主动追问、每人的有效互动、卡关与总时长。
 - 真机 iPhone Safari、Android Chrome：首次播放、后台恢复、弱网、键盘与素材缓存。
 - 三台独立设备同房、异网访问新的正式候选版。
-- MySQL 环境联调与团队业务表迁移；当前为独立 H2 快照存储。
+- 团队九表的完整游戏业务映射、Redis 跨实例匹配和锁；本次 MySQL/JPA 快照联调与 Redis 连接已验证，不能将它们等同于完整九表架构落地。
 - 当前域名上的正式版替换、线上备份恢复演练；旧 Node 站点继续保留。
 
 ## 真人试玩记录模板

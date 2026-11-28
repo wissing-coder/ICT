@@ -1,17 +1,25 @@
-package cn.echo.game;
+package com.mian.backend.game;
 
 import org.junit.jupiter.api.*;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import com.mian.backend.persistence.RoomStateStore;
+import com.mian.backend.persistence.RoomSnapshotRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import java.util.*;
 import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
-import static cn.echo.game.GameService.m;
+import static com.mian.backend.game.GameService.m;
 
+@SpringBootTest
+@ActiveProfiles("test")
 class GameServiceTest {
-    GameService g; JdbcTemplate db;
-    @BeforeEach void setup() throws Exception {db=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa",""));g=engine();}
-    GameService engine() throws Exception{return new GameService(db,60000,45000,"test","","");}
+    GameService g;
+    @Autowired RoomStateStore store;
+    @Autowired RoomSnapshotRepository repository;
+    @BeforeEach void setup() throws Exception {repository.deleteAll();g=engine();}
+    @AfterEach void stopEngine(){if(g!=null)g.shutdown();}
+    GameService engine() throws Exception{return new GameService(store,60000,45000,"test","","");}
     record Seat(String code,String auth,String id){}
     @SuppressWarnings("unchecked") Seat enter(String mode,String role,String code){Map<String,Object> e=(Map<String,Object>)g.entry(mode,m("name","同名玩家","role",role,"avatarId",role+"-2","code",code),"","test");Map<String,Object>s=(Map<String,Object>)e.get("state");return new Seat((String)s.get("code"),"Bearer "+e.get("token"),(String)s.get("me"));}
     Map<String,Object> act(Seat s,String a,Object...v){var body=m(v);body.putIfAbsent("phase",g.rooms.get(s.code).phase);return cast(g.action(s.code,a,body,s.auth));}
